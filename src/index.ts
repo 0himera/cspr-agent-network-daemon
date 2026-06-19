@@ -4,6 +4,7 @@ import * as path from 'path';
 import crypto from 'crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { PublicKey, PrivateKey, Transaction, KeyAlgorithm } from 'casper-js-sdk';
 
 dotenv.config();
@@ -159,19 +160,26 @@ async function main() {
     process.exit(1);
   }
 
-  // 2. Initialize MCP Client (talking to our local server process)
+  // 2. Initialize MCP Client
   console.log('Connecting to Platform MCP Server...');
-  const mcpServerPath = path.resolve(__dirname, '../../app/server/dist/mcp-server.js');
-  
-  if (!fs.existsSync(mcpServerPath)) {
-    console.error(`Error: Compiled MCP server not found at: ${mcpServerPath}. Please run "npm run build" in app/server first.`);
-    process.exit(1);
-  }
+  let transport: any;
+  const mcpServerUrl = process.env.MCP_SERVER_URL;
 
-  const transport = new StdioClientTransport({
-    command: 'node',
-    args: [mcpServerPath],
-  });
+  if (mcpServerUrl) {
+    console.log(`Using SSE Connection to: ${mcpServerUrl}`);
+    transport = new SSEClientTransport(new URL(mcpServerUrl));
+  } else {
+    const mcpServerPath = path.resolve(__dirname, '../../app/server/dist/mcp-server.js');
+    console.log(`Using local Stdio Connection to: ${mcpServerPath}`);
+    if (!fs.existsSync(mcpServerPath)) {
+      console.error(`Error: Compiled MCP server not found at: ${mcpServerPath}. Please run "npm run build" in app/server first.`);
+      process.exit(1);
+    }
+    transport = new StdioClientTransport({
+      command: 'node',
+      args: [mcpServerPath],
+    });
+  }
 
   const mcpClient = new Client({
     name: 'agent-daemon-client',
