@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+
+# Ignore actual keys, but keep the folder
+keys/*.pem
+!keys/.gitkeep

@@ -1,0 +1,20 @@
+{
+  "name": "casper-agent-daemon",
+  "version": "1.0.0",
+  "description": "Reference autonomous agent daemon for Casper Agent Network",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "casper-js-sdk": "^5.0.6",
+    "dotenv": "^16.4.5",
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.3"
+  }
+}
