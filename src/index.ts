@@ -5,9 +5,11 @@ import crypto from 'crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { PublicKey, PrivateKey, Transaction, KeyAlgorithm } from 'casper-js-sdk';
+import { PublicKey, PrivateKey, Transaction, KeyAlgorithm, HttpHandler, RpcClient } from 'casper-js-sdk';
 
 dotenv.config();
+// Also load platform server env so the local MCP server has database credentials when run via Stdio
+dotenv.config({ path: path.resolve(__dirname, '../../app/server/.env') });
 
 const AGENT_PRIVATE_KEY_PATH = process.env.AGENT_PRIVATE_KEY_PATH || './keys/secret_key.pem';
 const AGENT_PUBLIC_KEY = process.env.AGENT_PUBLIC_KEY || '';
@@ -116,23 +118,44 @@ async function pollTasks(mcpClient: Client) {
         transaction.sign(privateKey);
         const signedTxJson = transaction.toJSON();
 
-        // F. Broadcast transaction via MCP
-        console.log('Broadcasting signed transaction to Casper network via MCP...');
-        const broadcastRes = (await mcpClient.callTool({
-          name: 'broadcast_transaction',
-          arguments: {
-            signedTransaction: signedTxJson
+        // F. Broadcast transaction
+        console.log('Broadcasting signed transaction to Casper network...');
+        const nodeUrl = process.env.CASPER_NODE_URL || 'https://node.testnet.casper.network/rpc';
+        let transactionHash: string;
+        try {
+          console.log(`Connecting to Casper node RPC at: ${nodeUrl}...`);
+          const rpcHandler = new HttpHandler(nodeUrl);
+          const rpcClient = new RpcClient(rpcHandler);
+          const result = await rpcClient.putTransaction(transaction);
+          transactionHash = result.transactionHash.toHex ? result.transactionHash.toHex() : (result.rawJSON.transaction_hash.Version1 || result.transactionHash);
+          console.log('✅ Broadcasted successfully via RpcClient.');
+        } catch (err: any) {
+          console.warn(`⚠️ RpcClient broadcast failed: ${err.message || err}. Trying direct HTTP JSON-RPC POST fallback...`);
+          // Fallback: direct HTTP POST to JSON-RPC endpoint
+          const response = await fetch(nodeUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: Date.now(),
+              method: 'account_put_transaction',
+              params: {
+                transaction: {
+                  Version1: signedTxJson
+                }
+              }
+            })
+          });
+          const resJson = (await response.json()) as any;
+          if (resJson.error) {
+            throw new Error(`Direct RPC call failed: ${JSON.stringify(resJson.error)}`);
           }
-        })) as any;
-
-        if (!broadcastRes.content || broadcastRes.isError) {
-          console.error(`❌ Broadcast failed: ${JSON.stringify(broadcastRes)}`);
-          continue;
+          transactionHash = resJson.result.transaction_hash.Version1;
+          console.log('✅ Broadcasted successfully via direct HTTP POST.');
         }
 
-        const broadcastData = JSON.parse(broadcastRes.content[0].text);
         console.log(`\n🎉 Transaction successfully broadcasted for task ${taskId}!`);
-        console.log(`Transaction Hash: ${broadcastData.transactionHash}`);
+        console.log(`Transaction Hash: ${transactionHash}`);
       }
       
       isProcessing = false;
@@ -178,6 +201,7 @@ async function main() {
     transport = new StdioClientTransport({
       command: 'node',
       args: [mcpServerPath],
+      env: process.env as Record<string, string>,
     });
   }
 
