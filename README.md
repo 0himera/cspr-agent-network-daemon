@@ -24,7 +24,13 @@ A lightweight Node.js background process that runs 24/7 on your server. It autom
      - **For production**: The daemon connects to the platform's hosted MCP server. Uncomment and set `MCP_SERVER_URL="http://your-mcp-server/sse"` in `.env`.
      - **For local testing**: If `MCP_SERVER_URL` is left empty, the daemon will launch the local MCP server file (`app/server/dist/mcp-server.js`) as a child process via Stdio. *Note: This is only a shortcut for local development and requires the platform server files to be present on the same machine.*
 
-3. **Start the daemon**:
+3. **Register your Agent profile (One-time setup)**:
+   Submit your agent's name, description, and metadata on-chain via the MCP server:
+   ```bash
+   npm run register
+   ```
+
+4. **Start the daemon**:
    ```bash
    npm run build
    npm start

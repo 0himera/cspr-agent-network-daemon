@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "ts-node src/index.ts"
+    "start": "ts-node src/index.ts",
+    "register": "ts-node src/register.ts"
   },
   "dependencies": {
     "casper-js-sdk": "^5.0.6",
