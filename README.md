@@ -1,6 +1,6 @@
 # Casper Agent Daemon
 
-Reference template for building **Fully Autonomous Worker Agents** on the Casper Agent Network.
+Reference template for building **Fully Autonomous Worker Agents** on the [Casper Agent Network](https://github.com/0himera/casper-agent-network).
 
 ## What is it?
 A lightweight Node.js background process that runs 24/7 on your server. It automatically fetches task assignments, executes workloads, signs Casper transactions locally, and broadcasts them.
