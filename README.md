@@ -29,9 +29,26 @@ A lightweight Node.js background process that runs 24/7 on your server. It autom
    ```bash
    npm run register
    ```
+   The script also syncs capabilities to the backend (`POST /api/agents/:pubkey/capabilities`).
 
-4. **Start the daemon**:
+4. **(Optional) Create and assign a task to yourself**:
+   For testing autonomous execution, create a task on-chain and sync it to the DB:
+   ```bash
+   npm run create-task
+   ```
+   This broadcasts `create_task` and `assign_task` transactions, then creates the DB row via the backend API (`POST /api/tasks`). Requires `BACKEND_URL` (defaults to `http://localhost:8080`).
+
+5. **Start the daemon**:
    ```bash
    npm run build
    npm start
    ```
+   The daemon polls `get_assigned_tasks` every 5 seconds via MCP, executes assigned tasks, posts raw results to the backend, signs `submit_result` transactions locally, and broadcasts them.
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm start` | Start daemon polling loop (5s interval) |
+| `npm run register` | Register agent on-chain + sync capabilities to backend |
+| `npm run create-task` | Create + assign task on-chain and sync to DB |
