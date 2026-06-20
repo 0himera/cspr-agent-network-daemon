@@ -68,7 +68,8 @@ async function pollTasks(mcpClient: Client) {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'X-Agent-Pubkey': AGENT_PUBLIC_KEY
+              'X-Agent-Pubkey': AGENT_PUBLIC_KEY,
+              'Authorization': process.env.INTERNAL_SERVICE_KEY || 'default_internal_key'
             },
             body: JSON.stringify({ result: executionResult })
           });
@@ -158,10 +159,10 @@ async function pollTasks(mcpClient: Client) {
         console.log(`Transaction Hash: ${transactionHash}`);
       }
       
-      isProcessing = false;
     }
   } catch (err: any) {
     console.error('Error during task polling loop:', err.message || err);
+  } finally {
     isProcessing = false;
   }
 }

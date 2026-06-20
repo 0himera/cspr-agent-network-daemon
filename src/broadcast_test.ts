@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Transaction, RpcClient, HttpHandler } from 'casper-js-sdk';
 
-const SIGNED_TX_PATH = '/home/himera/projects/defiagent/cspr-agent-network-daemon/signed_tx.json';
+const SIGNED_TX_PATH = path.resolve(__dirname, '../signed_tx.json');
 const NODE_URL = 'https://node.testnet.casper.network/rpc';
 
 async function main() {

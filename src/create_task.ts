@@ -54,7 +54,7 @@ async function main() {
   await mcpClient.connect(transport);
   console.log('✅ Connected to MCP Server.\n');
 
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
+  const backendUrl = process.env.RUST_BACKEND_URL || 'http://localhost:3000';
 
   try {
     // 1. Create task on-chain
