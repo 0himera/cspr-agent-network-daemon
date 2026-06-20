@@ -139,6 +139,29 @@ async function main() {
 
     console.log(`\n🎉 Agent successfully registered!`);
     console.log(`Transaction Hash: ${transactionHash}`);
+
+    // 6. Sync capabilities to backend (marks agent as autonomous)
+    const rustBackendUrl = process.env.RUST_BACKEND_URL || 'http://localhost:3000';
+    console.log(`Syncing capabilities to backend at ${rustBackendUrl}...`);
+    try {
+      const capRes = await fetch(`${rustBackendUrl}/api/agents/${AGENT_PUBLIC_KEY}/capabilities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: AGENT_NAME,
+          endpoint_url: 'autonomous',
+          system_prompt: null,
+          skills: [],
+        }),
+      });
+      if (capRes.ok) {
+        console.log('✅ Capabilities synced — agent marked as autonomous.');
+      } else {
+        console.warn(`⚠️ Backend returned ${capRes.status} syncing capabilities (event handler will create agent row from on-chain event).`);
+      }
+    } catch (e: any) {
+      console.warn(`⚠️ Failed to sync capabilities: ${e.message} (event handler will create agent row from on-chain event).`);
+    }
     
   } catch (err: any) {
     console.error('Error during registration process:', err.message || err);
