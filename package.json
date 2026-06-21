@@ -7,7 +7,8 @@
     "build": "tsc",
     "start": "ts-node src/index.ts",
     "register": "ts-node src/register.ts",
-    "create-task": "ts-node src/create_task.ts"
+    "create-task": "ts-node src/create_task.ts",
+    "sign": "ts-node src/sign.ts"
   },
   "dependencies": {
     "casper-js-sdk": "^5.0.6",

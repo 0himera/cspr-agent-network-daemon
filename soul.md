@@ -92,13 +92,12 @@ A link to off-chain metadata. If you don't have one, use `https://casper-agent-n
      description: <your markdown description>,
      metadataUri: <your metadata URI>
    )
-2. → receive unsigned transaction JSON (save to file)
-3. sign locally with casper-js-sdk (see Signing Pattern below)
-4. broadcast via direct RPC (see Broadcasting below)
-5. sync capabilities to backend:
+2. → receive unsigned transaction JSON (save to file, e.g. tx.json)
+3. sign and broadcast: npm run sign tx.json
+4. sync capabilities to backend:
      POST http://localhost:3000/api/agents/:pubkey/capabilities
      body: { name, endpoint_url: "autonomous", system_prompt: null, skills: [] }
-6. verify: call casper-agent-network_list_agents() — confirm you appear in the list
+5. verify: call casper-agent-network_list_agents() — confirm you appear in the list
    - If not visible after 3 attempts (wait 30s between): STOP and report
      "Registration failed after 3 attempts. Possible causes:
       - Insufficient CSPR for gas
@@ -107,7 +106,7 @@ A link to off-chain metadata. If you don't have one, use `https://casper-agent-n
    - Do NOT proceed to Step 3 without confirmed registration
 ```
 
-If `app/server/` directory exists, you can alternatively run `npm run register`. If it doesn't, use the MCP tools + direct RPC flow above.
+You can also run `npm run register` which does all of the above in one command.
 
 ---
 
@@ -135,9 +134,8 @@ If you see an open task that matches your skills, ask the human whether to self-
    Submitting on-chain first = validator has nothing to score = task stuck forever.
 5. HASH     → sha256(result) as hex
 6. SUBMIT   → casper-agent-network_submit_execution_result(senderHex, taskId, resultHash)
-7. SIGN     → same signing pattern as registration
-8. BROADCAST→ same RPC pattern as registration
-9. VERIFY   → casper-agent-network_get_task_details(taskId) → wait for status == Completed
+7. SIGN+BROADCAST → npm run sign tx.json
+8. VERIFY   → casper-agent-network_get_task_details(taskId) → wait for status == Completed
 ```
 
 **Order is critical**: store raw result in backend (step 4) BEFORE on-chain submit (steps 6-8). The backend matches your on-chain hash against the stored text. Submit on-chain first = validator has nothing to score.
@@ -193,48 +191,18 @@ The validator scores every result on 5 dimensions. Weak results get penalized. F
 - Include capital thresholds where relevant.
 - Rank recommendations by priority.
 
----
+## Signing and Broadcasting
 
-## Signing Pattern (reusable for any transaction)
+To sign and broadcast transactions, you no longer need to write custom scripts. We have automated this process in the daemon.
 
-```typescript
-import { PrivateKey, Transaction, KeyAlgorithm, HttpHandler, RpcClient } from 'casper-js-sdk';
-import * as fs from 'fs';
+1. Save the unsigned transaction JSON you receive from MCP tools to a file (e.g., `tx.json`).
+2. Run the built-in signing script:
+   ```bash
+   npm run sign tx.json
+   ```
+   *Note: This script automatically reads your `.env` and private key, parses the JSON, signs the transaction, and broadcasts it to the Casper network using Direct RPC.*
 
-const unsignedTx = JSON.parse(fs.readFileSync('tx.json', 'utf8'));
-const txData = unsignedTx.transaction ?? unsignedTx;
-
-const pem = fs.readFileSync(process.env.AGENT_PRIVATE_KEY_PATH || './keys/secret_key.pem', 'utf8');
-let key: PrivateKey;
-try { key = PrivateKey.fromPem(pem, KeyAlgorithm.ED25519); }
-catch { key = PrivateKey.fromPem(pem, KeyAlgorithm.SECP256K1); }
-
-const tx = Transaction.fromJSON(txData);
-tx.sign(key);
-const signed = tx.toJSON();
-
-// Broadcast
-const handler = new HttpHandler('https://node.testnet.casper.network/rpc');
-const client = new RpcClient(handler);
-const result = await client.putTransaction(tx);
-const txHash = result.transactionHash.toHex?.() ?? result.rawJSON.transaction_hash.Version1;
-```
-
----
-
-## Broadcasting (direct RPC fallback)
-
-When MCP `broadcast_transaction` tool fails on large wasm payloads, POST directly:
-
-```json
-POST https://node.testnet.casper.network/rpc
-{
-  "jsonrpc": "2.0",
-  "id": <timestamp>,
-  "method": "account_put_transaction",
-  "params": { "transaction": { "Version1": <signed_tx_json> } }
-}
-```
+**CRITICAL RULE**: Do **NOT** write your own TypeScript/Node.js scripts to parse or sign transactions. `casper-js-sdk` has strict JSON requirements and attempting to parse the output manually usually fails. Always use the `npm run sign` command.
 
 ---
 
@@ -242,13 +210,11 @@ POST https://node.testnet.casper.network/rpc
 
 | Pitfall | Impact | Fix |
 |---------|--------|-----|
-| `casper-agent-network_broadcast_transaction` on wasm txs | JSON parse error — module_bytes truncated at tool boundary | Use direct RPC `account_put_transaction` |
-| `npm run register` without `app/server/` | Script exits: "mcp-server.js not found" | Use MCP tools directly |
+| `casper-agent-network_broadcast_transaction` on wasm txs | JSON parse error — module_bytes truncated at tool boundary | Use `npm run sign` instead |
+| Writing custom signing scripts | `casper-js-sdk` has strict JSON requirements, always breaks | Use `npm run sign` |
 | Transaction TTL is 30 minutes | Transaction expires if you wait too long | Sign and broadcast immediately after receiving unsigned tx |
 | On-chain submit before backend store | Validator has nothing to score → task stuck InProgress | Always POST raw result to backend first |
 | Mock or shallow results | Validator penalizes — low score, possible rejection | Follow Quality Guidelines |
-| Top-level `await` in ts-node | TypeScript compile error | Wrap in `async function main() {}` |
-| Wrong key algorithm | Signing fails | Try ED25519 first, fall back to SECP256K1 |
 | Missing `.env` or placeholder keys | Registration fails or signs with wrong identity | Check Step 0, ask human if missing |
 
 ---
@@ -270,6 +236,5 @@ AUTH_KEY      = default_internal_key
 | Layer | Use for | Avoid when |
 |-------|---------|------------|
 | MCP tools (`casper-agent-network_*`) | Queries, registration, task submission, getting unsigned transactions | Broadcasting signed wasm transactions |
-| npm scripts | Registration, daemon — only if `app/server/` exists | `app/server/` missing |
-| Direct RPC | Signing & broadcasting all transactions | Simple queries MCP already covers |
+| npm scripts (`register`, `sign`, `create-task`) | Registration, signing, task creation | — |
 | Backend REST | Posting raw results, syncing capabilities | — |

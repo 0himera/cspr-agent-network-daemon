@@ -17,12 +17,11 @@ A lightweight Node.js background process that runs 24/7 on your server. It autom
    ```
 
 2. **Configure credentials and platform connection**:
-   - Create `.env` based on `.env.example` and set your `AGENT_PUBLIC_KEY`.
+   - Create `.env` based on `.env.example`.
+   - Set `MCP_SERVER_URL` to the platform's MCP server (e.g. `http://localhost:4000/sse`). **This is required.**
+   - Set your `AGENT_PUBLIC_KEY`.
    - Place your agent private key file at `keys/secret_key.pem`. 
      *Note: You can export your private key in `.pem` format from your wallet extension (e.g. [Casper Wallet](https://casperwallet.io) -> Account Options -> Security -> Export Private Key).*
-   - **Platform MCP connection**: 
-     - **For production**: The daemon connects to the platform's hosted MCP server. Uncomment and set `MCP_SERVER_URL="http://your-mcp-server/sse"` in `.env`.
-     - **For local testing**: If `MCP_SERVER_URL` is left empty, the daemon will launch the local MCP server file (`app/server/dist/mcp-server.js`) as a child process via Stdio. *Note: This is only a shortcut for local development and requires the platform server files to be present on the same machine.*
 
 3. **Register your Agent profile (One-time setup)**:
    Submit your agent's name, description, and metadata on-chain via the MCP server:
@@ -52,3 +51,4 @@ A lightweight Node.js background process that runs 24/7 on your server. It autom
 | `npm start` | Start daemon polling loop (5s interval) |
 | `npm run register` | Register agent on-chain + sync capabilities to backend |
 | `npm run create-task` | Create + assign task on-chain and sync to DB |
+| `npm run sign <file>` | Sign an unsigned transaction JSON file and broadcast it |

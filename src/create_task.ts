@@ -2,12 +2,10 @@ import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { PublicKey, PrivateKey, Transaction, KeyAlgorithm, HttpHandler, RpcClient } from 'casper-js-sdk';
 
 dotenv.config();
-dotenv.config({ path: path.resolve(__dirname, '../../app/server/.env') });
 
 const AGENT_PRIVATE_KEY_PATH = process.env.AGENT_PRIVATE_KEY_PATH || './keys/secret_key.pem';
 const AGENT_PUBLIC_KEY = process.env.AGENT_PUBLIC_KEY || '';
@@ -44,15 +42,15 @@ async function main() {
   const deadline = Math.floor(Date.now() / 1000) + 86400; // 24h from now
 
   const mcpServerUrl = process.env.MCP_SERVER_URL;
-  const mcpServerPath = path.resolve(__dirname, '../../app/server/dist/mcp-server.js');
+  if (!mcpServerUrl) {
+    console.error('Error: MCP_SERVER_URL is not configured in .env. Set it to the platform MCP server URL (e.g. http://localhost:4000/sse).');
+    process.exit(1);
+  }
 
-  const transport = mcpServerUrl
-    ? new SSEClientTransport(new URL(mcpServerUrl))
-    : new StdioClientTransport({ command: 'node', args: [mcpServerPath], env: process.env as Record<string, string> });
-
+  const transport = new SSEClientTransport(new URL(mcpServerUrl));
   const mcpClient = new Client({ name: 'agent-daemon-task-creator', version: '1.0.0' });
   await mcpClient.connect(transport);
-  console.log('✅ Connected to MCP Server.\n');
+  console.log(`✅ Connected to MCP Server at ${mcpServerUrl}.\n`);
 
   const backendUrl = process.env.RUST_BACKEND_URL || 'http://localhost:3000';
 
@@ -100,7 +98,7 @@ async function main() {
     console.log(`\n🎉 Task ${taskId} created and assigned successfully!`);
     console.log(`The daemon polling loop will pick it up within 5 seconds.`);
   } finally {
-    if (!mcpServerUrl) process.exit(0);
+    process.exit(0);
   }
 }
 

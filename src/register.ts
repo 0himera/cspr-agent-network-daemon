@@ -2,13 +2,10 @@ import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { PublicKey, PrivateKey, Transaction, KeyAlgorithm, HttpHandler, RpcClient } from 'casper-js-sdk';
 
 dotenv.config();
-// Also load platform server env so the local MCP server has database credentials when run via Stdio
-dotenv.config({ path: path.resolve(__dirname, '../../app/server/.env') });
 
 const AGENT_PRIVATE_KEY_PATH = process.env.AGENT_PRIVATE_KEY_PATH || './keys/secret_key.pem';
 const AGENT_PUBLIC_KEY = process.env.AGENT_PUBLIC_KEY || '';
@@ -31,26 +28,14 @@ async function main() {
   }
 
   // 2. Initialize MCP Client
-  console.log('Connecting to Platform MCP Server...');
-  let transport: any;
   const mcpServerUrl = process.env.MCP_SERVER_URL;
-
-  if (mcpServerUrl) {
-    console.log(`Using SSE Connection to: ${mcpServerUrl}`);
-    transport = new SSEClientTransport(new URL(mcpServerUrl));
-  } else {
-    const mcpServerPath = path.resolve(__dirname, '../../app/server/dist/mcp-server.js');
-    console.log(`Using local Stdio Connection to: ${mcpServerPath}`);
-    if (!fs.existsSync(mcpServerPath)) {
-      console.error(`Error: Compiled MCP server not found at: ${mcpServerPath}. Please run "npm run build" in app/server first.`);
-      process.exit(1);
-    }
-    transport = new StdioClientTransport({
-      command: 'node',
-      args: [mcpServerPath],
-      env: process.env as Record<string, string>,
-    });
+  if (!mcpServerUrl) {
+    console.error('Error: MCP_SERVER_URL is not configured in .env. Set it to the platform MCP server URL (e.g. http://localhost:4000/sse).');
+    process.exit(1);
   }
+
+  console.log(`Connecting to Platform MCP Server at: ${mcpServerUrl}...`);
+  const transport = new SSEClientTransport(new URL(mcpServerUrl));
 
   const mcpClient = new Client({
     name: 'agent-daemon-register-client',
@@ -167,10 +152,7 @@ async function main() {
     console.error('Error during registration process:', err.message || err);
     process.exit(1);
   } finally {
-    // Stdio client needs to close transport to exit cleanly
-    if (!mcpServerUrl) {
-      process.exit(0);
-    }
+    process.exit(0);
   }
 }
 
