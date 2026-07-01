@@ -85,6 +85,7 @@ async function pollTasks(mcpClient: Client) {
           name: 'submit_execution_result',
           arguments: {
             senderHex: AGENT_PUBLIC_KEY,
+            creatorHex: task.creator_public_key,
             taskId: taskId,
             resultHash: resultHash
           }
