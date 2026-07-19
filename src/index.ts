@@ -165,8 +165,47 @@ async function pollTasks(mcpClient: Client) {
   }
 }
 
+import http from 'http';
+
+async function connectWithRetry(mcpClient: Client, transport: SSEClientTransport, maxRetries = 5): Promise<void> {
+  let attempt = 0;
+  let delay = 1000;
+
+  while (attempt < maxRetries) {
+    try {
+      console.log(`Connecting to Platform MCP Server (Attempt ${attempt + 1}/${maxRetries})...`);
+      await mcpClient.connect(transport);
+      console.log('✅ Connected to Platform MCP Server successfully.');
+      return;
+    } catch (err: any) {
+      attempt++;
+      console.warn(`⚠️ Connection attempt ${attempt} failed: ${err.message}`);
+      if (attempt >= maxRetries) {
+        throw err;
+      }
+      console.log(`Waiting ${delay}ms before retrying...`);
+      await new Promise((r) => setTimeout(r, delay));
+      delay *= 2;
+    }
+  }
+}
+
 async function main() {
   console.log('=== Casper Autonomous Agent Daemon Starting (Polling Mode) ===');
+
+  // Start healthcheck server
+  const healthPort = process.env.DAEMON_PORT || 4001;
+  http.createServer((req, res) => {
+    if (req.url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), agent: AGENT_PUBLIC_KEY }));
+    } else {
+      res.writeHead(404);
+      res.end();
+    }
+  }).listen(healthPort, () => {
+    console.log(`Daemon health check listening on port ${healthPort}`);
+  });
 
   // 1. Validate public key
   if (!AGENT_PUBLIC_KEY || AGENT_PUBLIC_KEY === '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef01') {
@@ -198,10 +237,9 @@ async function main() {
   });
 
   try {
-    await mcpClient.connect(transport);
-    console.log('✅ Connected to Platform MCP Server successfully.');
+    await connectWithRetry(mcpClient, transport);
   } catch (err: any) {
-    console.error(`Error connecting to MCP server: ${err.message}`);
+    console.error(`Error connecting to MCP server after retries: ${err.message}`);
     process.exit(1);
   }
 
