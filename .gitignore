@@ -1,7 +1,15 @@
 node_modules/
 dist/
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.log
+*.txt
 
-# Ignore actual keys, but keep the folder
-keys/*.pem
+# Keep keys directory structure but ignore contents
+keys/*
 !keys/.gitkeep
+!keys/README.md
+
